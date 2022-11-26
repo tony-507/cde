@@ -1,14 +1,20 @@
 #!/bin/bash
 
-userBuildLocal () {
+userBuild () {
 	imgName="cde"
 	imgVersion="latest"
 	srcDir="${MODULE_DIR}/src"
 
-	docker build -t $imgName:$imgVersion -f $srcDir/Dockerfile $srcDir/.
+	echo $srcDir
+	echo "Start building CDE image"
+
+	buildBaseImage
+
+	publishDocker $imgName
 }
 
-userBuild () {
-	userBuildLocal
-	publishDocker $imgName $imgVersion
+buildBaseImage () {
+	docker build -t $imgName -f $srcDir/Dockerfile $srcDir/
 }
+
+

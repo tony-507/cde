@@ -16,7 +16,11 @@ fatal () {
 # Command line options
 startContainer () {
 	if [[ -z $(checkExists) ]]; then
-		docker run -d --name ${containerName} -v $(pwd):/mnt tony57/cde tail -f /dev/null
+		docker run -d \
+			--name ${containerName} \
+			-v $(pwd):/mnt \
+			-v /var/run/docker.sock:/var/run/docker.sock \
+			tony57/cde tail -f /dev/null
 	else
 		fatal "Container already exists"
 	fi
@@ -65,6 +69,14 @@ showHelp () {
 	echo "help:   Print help messages"
 }
 
+assertDockerRunning () {
+	rv=$(docker images | grep Error)
+	if [[ $rv ]]; then
+		exit 1
+	fi
+}
+
+assertDockerRunning
 case $1 in
 	"start")
 		startContainer
@@ -85,7 +97,7 @@ case $1 in
 		showHelp
 		;;
 	*)
-		echo "Unknown option\n"
+		echo -e "Unknown option\n"
 		showHelp
 		;;
 esac
