@@ -3,6 +3,8 @@
 imgName="cde"
 imgVersion="latest"
 
+source build-tools/docker-client.sh
+
 userBuild () {
 	srcDir="${MODULE_DIR}/src"
 
@@ -10,6 +12,8 @@ userBuild () {
 	echo "Start building CDE image"
 
 	buildBaseImage
+
+	buildDevToolRpm
 
 	publishDocker $imgName
 }
@@ -19,44 +23,64 @@ userTest () {
 }
 
 buildBaseImage () {
-	docker build -t $imgName \
-		-f $srcDir/Dockerfile \
-		--progress=plain \
-		$srcDir/
+	cmd="docker build -t $imgName -f $srcDir/Dockerfile "
+	if [[ ${DEBUG_BUILD} ]]; then
+		cmd+="--progress=plain "
+	fi
+	cmd+="$srcDir"
+	$cmd
+}
+
+buildDevToolRpm () {
+	echo "Building dev tools RPM..."
+	mount "${MODULE_DIR}/src/scripts:/opt/tony57/tmp"
+	id=$(startInstance "$imgName:$imgVersion")
+	if [[ $id ]]; then
+		docker exec
+		docker exec $id bash -c "/bin/bash /opt/tony57/tmp/install_buildTools.sh"
+		docker exec $id bash -c "mkdir -p /opt/tony57/rpm && rpm -qa > /opt/tony57/rpm/devTool.rpm"
+		docker commit $id $imgName:$imgVersion
+		removeInstance $id
+	else
+		failBuild "Fail to start container"
+	fi
 }
 
 testBaseImage () {
 	testReport="${MODULE_DIR}/output/test_detail_cde.xml"
-	containerName="testContainer"
 	mkdir -p $(dirname $testReport)
 	rm -f $testReport
 	touch $testReport
 
-	echo "Starting CDE container..."
-	docker run -d -v ${MODULE_DIR}/test:/mnt -v /var/run/docker.sock:/var/run/docker.sock --name $containerName $imgName tail -f /dev/null
+	mount "/var/run/docker.sock:/var/run/docker.sock"
+	mount "${MODULE_DIR}:/mnt"
+	id=$(startInstance $imgName:$imgVersion)
 
-	testCnt=$(ls ${MODULE_DIR}/test | grep -c "")
-	echo "<testsuite tests=\"$testCnt\">" > $testReport
+	if [[ $id ]]; then
+		testCnt=$(ls ${MODULE_DIR}/test | grep -c "")
+		echo "<testsuite tests=\"$testCnt\">" > $testReport
 
-	echo -e "\nStart CDE tests...\n"
-	for t in ${MODULE_DIR}/test/*; do
-		fname=$(basename $t)
-		testName=${fname%.sh}
-		stdout=$(docker exec $containerName bash /mnt/$fname)
+		echo -e "\nStart CDE tests...\n"
+		for t in ${MODULE_DIR}/test/*; do
+			fname=$(basename $t)
+			testName=${fname%.sh}
+			stdout=$(docker exec $id bash /mnt/$fname)
 
-		echo "  <testcase classname=\"cde\" name=\"$testName\">" >> $testReport
+			echo "  <testcase classname=\"cde\" name=\"$testName\">" >> $testReport
 
-		if [[ -z $stdout ]]; then
-			echo -e "[PASS] $testName\n"
-		else
-			echo -e "[FAIL] $testName\n"
-			echo "    <failure type=\"unknown\">$stdout</failure>" >> $testReport
-		fi
-		echo "  </testcase>" >> $testReport
-	done
+			if [[ -z $stdout ]]; then
+				echo -e "[PASS] $testName\n"
+			else
+				echo -e "[FAIL] $testName\n"
+				echo "    <failure type=\"unknown\">$stdout</failure>" >> $testReport
+			fi
+			echo "  </testcase>" >> $testReport
+		done
 
-	echo "</testSuite>" >> $testReport
+		echo "</testSuite>" >> $testReport
 
-	echo "Removing CDE container..."
-	docker rm -f $containerName
+		removeInstance $id
+	else
+		failBuild "Fail to start container"
+	fi
 }

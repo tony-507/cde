@@ -1,6 +1,6 @@
 #!/bin/bash
 
-apps=("make" "python3" "go" "node" "npm" "java" "ansible")
+apps=("python3" "node" "npm" "java") 
 
 for app in ${apps[@]}; do
 	if [[ -z $(command -v $app) ]]; then

@@ -25,9 +25,9 @@ startContainer () {
 			--name ${containerName} \
 			-v $(pwd):/mnt \
 			-v /var/run/docker.sock:/var/run/docker.sock \
-			tony57/cde tail -f /dev/null > /dev/null 2&>1
+			tony57/cde tail -f /dev/null > /dev/null 2>&1
 		echo "Installing dev tools. Please wait..."
-		docker exec ${containerName} rpm install -q /opt/tony57/rpm/cde.rpm > /dev/null 2&>1
+		docker exec ${containerName} bash -c "/bin/bash rpm install -q /opt/tony57/rpm/cde.rpm > /dev/null 2>&1"
 		echo "Customising environment..."
 		customise
 		echo "Done!"
