@@ -13,8 +13,6 @@ userBuild () {
 
 	buildBaseImage
 
-	buildDevToolRpm
-
 	publishDocker $imgName
 }
 
@@ -29,21 +27,6 @@ buildBaseImage () {
 	fi
 	cmd+="$srcDir"
 	$cmd
-}
-
-buildDevToolRpm () {
-	echo "Building dev tools RPM..."
-	mount "${MODULE_DIR}/src/scripts:/opt/tony57/tmp"
-	id=$(startInstance "$imgName:$imgVersion")
-	if [[ $id ]]; then
-		docker exec
-		docker exec $id bash -c "/bin/bash /opt/tony57/tmp/install_buildTools.sh"
-		docker exec $id bash -c "mkdir -p /opt/tony57/rpm && rpm -qa > /opt/tony57/rpm/devTool.rpm"
-		docker commit $id $imgName:$imgVersion
-		removeInstance $id
-	else
-		failBuild "Fail to start container"
-	fi
 }
 
 testBaseImage () {

@@ -1,9 +1,15 @@
 #!/bin/bash
 
 containerName="tony57CDEDD"
+imageName="tchan_cde:latest"
+
+# Check if CDE image exists
+checkImageExists () {
+	docker images | grep ${imageName}
+}
 
 # Check if container already exists
-checkExists () {
+checkContainerExists () {
 	docker ps -a | grep ${containerName}
 }
 
@@ -20,16 +26,25 @@ customise () {
 
 # Command line options
 startContainer () {
-	if [[ -z $(checkExists) ]]; then
+	if [[ -z $(checkContainerExists) ]]; then
+		if [[ -z $(checkImageExists) ]]; then
+			docker run -d \
+				--name ${containerName} \
+				-v $(pwd):/mnt \
+				-v /var/run/docker.sock:/var/run/docker.sock \
+				tony57/cde tail -f /dev/null > /dev/null 2>&1
+			echo "Installing dev tools. Please wait..."
+			docker exec ${containerName} bash -c "/opt/tony57/rpm/install_cde.sh"
+			echo "Customising environment..."
+			customise
+			docker commit ${containerName} ${imageName}
+			docker rm -f ${containerName}
+		fi	
 		docker run -d \
 			--name ${containerName} \
 			-v $(pwd):/mnt \
 			-v /var/run/docker.sock:/var/run/docker.sock \
-			tony57/cde tail -f /dev/null > /dev/null 2>&1
-		echo "Installing dev tools. Please wait..."
-		docker exec ${containerName} bash -c "/bin/bash rpm install -q /opt/tony57/rpm/cde.rpm > /dev/null 2>&1"
-		echo "Customising environment..."
-		customise
+			${imageName} tail -f /dev/null > /dev/null 2>&1
 		echo "Done!"
 	else
 		fatal "Container already exists"
@@ -37,7 +52,7 @@ startContainer () {
 }
 
 runSession () {
-	if [[ -z $(checkExists) ]]; then
+	if [[ -z $(checkContainerExists) ]]; then
 		fatal "Container not exists"
 	else
 		if [[ $(docker ps -a | grep ${containerName}) ]]; then
@@ -48,7 +63,7 @@ runSession () {
 }
 
 stopContainer () {
-	if [[ -z $(checkExists) ]]; then
+	if [[ -z $(checkContainerExists) ]]; then
 		fatal "Container not exists"
 	else
 		docker stop ${containerName}
@@ -56,7 +71,7 @@ stopContainer () {
 }
 
 deleteContainer () {
-	if [[ -z $(checkExists) ]]; then
+	if [[ -z $(checkContainerExists) ]]; then
 		fatal "Container not exists"
 	else
 		docker rm -f ${containerName}
@@ -64,7 +79,7 @@ deleteContainer () {
 }
 
 reloadContainer () {
-	if [[ -z $(checkExists) ]]; then
+	if [[ -z $(checkContainerExists) ]]; then
 		fatal "Container not exists"
 	else
 		stopContainer
