@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Miscellaneous tools
+yum install -y -q bc # Arithmetics
+
 # Golang
 echo "Installing Go..."
 yum install -y -q golang
